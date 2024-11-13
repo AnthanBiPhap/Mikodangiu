@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Players with MetaMask</title>
+    <style>
+        body {
+    font-family: 'Times New Roman', Times, serif;
+    }
+    .khung1, .khung2 {
+        margin: 20px;
+        padding: 10px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+    }
+    .khung2 {
+        background-color: #ffffff; /* Thêm màu nền sáng cho khung2 */
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1); /* Thêm bóng đổ nhẹ */
+    }
+    /* Các phần còn lại giữ nguyên như cũ */
+    .table1 {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    .table1 th, .table1 td {
+        border: 1px solid #ddd;
+        padding: 8px;
+        text-align: center;
+        width: 20%;
+    }
+    .table1 th {
+        background-color: #f2f2f2;
+        color: #333;
+    }
+    .table1 tr:nth-child(even) {
+        background-color: #f9f9f9;
+    }
+    .table1 tr:hover {
+        background-color: #f1f1f1;
+    }
+    button {
+        margin: 0 5px;
+        width: 100px;
+        height: 50px;
+        padding: 5px 10px;
+        border: none;
+        border-radius: 3px;
+        cursor: pointer;
+    }
+    .update {
+        background-color: #4CAF50; 
+        color: white;
+        font-size: 15px;
+    }
+    .delete {
+        background-color: #f44336; 
+        color: white;
+        font-size: 15px;
+    }
+    .update:hover {
+        background-color: #45a049;
+    }
+    .delete:hover {
+        background-color: #e53935;
+    }
+    .pagination {
+        display: flex;
+        justify-content: center;
+        margin-top: 20px;
+    }
+    .pagination button {
+        margin: 0 5px;
+    }
+    #status {
+        margin-left: 20px;
+    }
+    #addUpdateSection {
+        display: none;
+    }
+    .khung2 input[type="text"], 
+    .khung2 input[type="number"] {
+        width: 100%;
+        padding-left: 20px;
+        font-size: 16px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        box-sizing: border-box; 
+    }
+    .khung2 button {
+        margin-top: 20px;
+        margin-bottom: 10px;
+        border: none;
+        border-radius: 3px;
+        cursor: pointer;
+        margin-left: 25%;
+    }
+    .khung2 button:hover {
+        opacity: 0.9;
+    }
+    .khung2 .update {
+        background-color: #4CAF50;
+        color: white;
+    }
+    .khung2 .delete {
+        background-color: #f44336;
+        color: white;
+    }
+    .khung2 .update:hover {
+        background-color: #45a049;
+    }
+    .khung2 .delete:hover {
+        background-color: #e53935;
+    }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/ethers@5.0.0/dist/ethers.umd.min.js"></script>
+</head>
+<body>
+    <!-- Connect-->
+    <h1 style="text-align: center;">Connect to MetaMask</h1>
+    <button id="connectButton" style="width: 150px; margin-left: 688px;font-size: 16px;background-color: #75eb79;">Connect Wallet</button>
+    <p id="status" style="text-align: center;font-size: 18px;">Not connected</p>
+
+    <button id="addPlayerButton" style="margin-left: 92%;display: none;background-color: #75eb79;font-size: 15px;">Add Player</button>
+    <!-- Manager Section - Initially Hidden -->
+    <div id="managerSection" class="khung1" style="display: none;">
+        <table class="table1" id="playerTable">
+            <thead>
+                <tr style="font-size: 20px;">
+                    <th>Player ID</th>
+                    <th>Player Name</th>
+                    <th>Player Heart</th>
+                    <th>Player Strength</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody style="font-size: 19px;">
+                <!-- Player list will be populated here -->
+            </tbody>
+        </table>
+        <div class="pagination">
+            <button id="prevPageButton" disabled style="font-size: 16px;">Previous</button>
+            <span id="pageInfo" style="padding-left: 30px;padding-right: 30px;margin-top: 13px;">Page 1</span>
+            <button id="nextPageButton" style="font-size: 16px;">Next</button>
+        </div>
+    </div>
+
+    <!-- Add/Update Section -->
+    <div id="addUpdateSection" class="khung2" style="display: none;">
+        <div class="name">
+            <p style="font-size: 22px;margin-left: 10px;">Name</p>
+            <input type="text" id="playerName" placeholder="Player Name" style="background-color: #f2f2f2;height: 40px;">
+        </div>
+        <div class="score">
+            <p style="font-size: 22px;margin-left: 10px;">Heart</p>
+            <input type="number" id="playerHeart" placeholder="Player Heart" style="background-color: #f2f2f2;height: 40px;">
+        </div>
+        <div class="score">
+            <p style="font-size: 22px;margin-left: 10px;">Strength</p>
+            <input type="number" id="playerStrength" placeholder="Player Strength" style="background-color: #f2f2f2;height: 40px;">
+        </div>
+        <div class="addPlayer" style="display: flex; margin-left: 21%;">
+            <button id="submitPlayerButton" class="update">Add Player</button>
+            <button id="cancelButton" class="delete" style="margin-left: 10px;">Cancel</button>
+        </div>
+    </div>
+
+
+    <script>
+        let provider;
+        let signer;
+        let contract;
+        const contractAddress = "0x0B80a04a2E1f346DDFbBe61cD9f401241a0D2D17";
+        const contractABI = [
+            {
+                "inputs": [
+                    { "internalType": "uint256", "name": "_id", "type": "uint256" },
+                    { "internalType": "string", "name": "_name", "type": "string" },
+                    { "internalType": "uint8", "name": "_heart", "type": "uint8" },
+                    { "internalType": "uint8", "name": "_strength", "type": "uint8" }
+                ],
+                "name": "addPlayer",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            },
+            {
+                "inputs": [],
+                "name": "getPlayers",
+                "outputs": [
+                    { "internalType": "uint256[]", "name": "ids", "type": "uint256[]" },
+                    { "internalType": "string[]", "name": "names", "type": "string[]" },
+                    { "internalType": "uint8[]", "name": "hearts", "type": "uint8[]" },
+                    { "internalType": "uint8[]", "name": "strengths", "type": "uint8[]" }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    { "internalType": "uint256", "name": "_id", "type": "uint256" }
+                ],
+                "name": "removePlayer",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    { "internalType": "uint256", "name": "_id", "type": "uint256" },
+                    { "internalType": "string", "name": "_name", "type": "string" },
+                    { "internalType": "uint8", "name": "_heart", "type": "uint8" },
+                    { "internalType": "uint8", "name": "_strength", "type": "uint8" }
+                ],
+                "name": "updatePlayer",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            }
+        ];
+    
+        let currentAddress = null;
+        let isUpdating = false;
+        let currentUpdateId = null;
+        let currentPage = 1;
+        const playersPerPage = 5;
+    
+        // Connect to MetaMask
+        // Connect to MetaMask
+        async function connectToMetaMask() {
+        if (window.ethereum) {
+            provider = new ethers.providers.Web3Provider(window.ethereum);
+            signer = provider.getSigner();
+            contract = new ethers.Contract(contractAddress, contractABI, signer);
+
+            await window.ethereum.request({ method: 'eth_requestAccounts' });
+            currentAddress = await signer.getAddress();
+            document.getElementById('status').innerText = `Connected to MetaMask: ${currentAddress}`;
+
+            // Disable the connect button after successful connection
+            document.getElementById('connectButton').disabled = true;
+
+            // Show the manager and add player sections
+            document.getElementById('managerSection').style.display = 'block';
+
+            // Show the add player button after connecting
+            document.getElementById('addPlayerButton').style.display = 'inline-block';
+
+            loadPlayersFromLocalStorage();
+        } else {
+            document.getElementById('status').innerText = "MetaMask is not installed!";
+            }
+        }
+
+
+    
+        // Load and render players from localStorage
+        function loadPlayersFromLocalStorage() {
+            const players = JSON.parse(localStorage.getItem(currentAddress)) || [];
+            const totalPages = Math.ceil(players.length / playersPerPage);
+            renderPlayerList(players, currentPage, totalPages);
+        }
+    
+        // Render player list with pagination
+        function renderPlayerList(players, currentPage, totalPages) {
+            const playerTable = document.getElementById('playerTable').getElementsByTagName('tbody')[0];
+            playerTable.innerHTML = '';
+    
+            // Determine players to display for the current page
+            const startIndex = (currentPage - 1) * playersPerPage;
+            const endIndex = Math.min(startIndex + playersPerPage, players.length);
+            const playersToDisplay = players.slice(startIndex, endIndex);
+    
+            playersToDisplay.forEach(player => {
+                const row = playerTable.insertRow();
+                row.insertCell(0).innerText = player.id;
+                row.insertCell(1).innerText = player.name;
+                row.insertCell(2).innerText = player.heart;
+                row.insertCell(3).innerText = player.strength;
+    
+                const actionsCell = row.insertCell(4);
+                actionsCell.innerHTML = `
+                    <button class="update" onclick="editPlayer(${player.id})">Update</button>
+                    <button class="delete" onclick="deletePlayer(${player.id})">Delete</button>
+                `;
+            });
+    
+            // Update pagination buttons
+            document.getElementById('prevPageButton').disabled = currentPage === 1;
+            document.getElementById('nextPageButton').disabled = currentPage === totalPages;
+            document.getElementById('pageInfo').innerText = `Page ${currentPage}`;
+        }
+    
+        // Handle previous page button click
+        document.getElementById('prevPageButton').addEventListener('click', () => {
+            if (currentPage > 1) {
+                currentPage--;
+                loadPlayersFromLocalStorage();
+            }
+        });
+    
+        // Handle next page button click
+        document.getElementById('nextPageButton').addEventListener('click', () => {
+            const totalPages = Math.ceil((JSON.parse(localStorage.getItem(currentAddress)) || []).length / playersPerPage);
+            if (currentPage < totalPages) {
+                currentPage++;
+                loadPlayersFromLocalStorage();
+            }
+        });
+    
+        // Edit a player
+        function editPlayer(id) {
+            const players = JSON.parse(localStorage.getItem(currentAddress));
+            const player = players.find(p => p.id === id);
+            if (player) {
+                document.getElementById('playerName').value = player.name;
+                document.getElementById('playerHeart').value = player.heart;
+                document.getElementById('playerStrength').value = player.strength;
+                isUpdating = true;
+                currentUpdateId = id;
+    
+                // Change button text to "Update Player"
+                document.getElementById('submitPlayerButton').innerText = 'Update Player';
+    
+                // Show the add/update section and hide the manager section
+                document.getElementById('addUpdateSection').style.display = 'block';
+                document.getElementById('managerSection').style.display = 'none';
+            }
+        }
+    
+        // Add or update player
+        document.getElementById('addPlayerButton').addEventListener('click', () => {
+            // Hide the player manager section and table
+            document.getElementById('managerSection').style.display = 'none';
+            // Show the add/update section
+            document.getElementById('addUpdateSection').style.display = 'block';
+            clearAddUpdateForm();
+        });
+    
+        // Add a new player or update
+        // Sự kiện cho nút Submit (Add/Update)
+        document.getElementById('submitPlayerButton').addEventListener('click', async () => {
+            const name = document.getElementById('playerName').value;
+            const heart = parseInt(document.getElementById('playerHeart').value);
+            const strength = parseInt(document.getElementById('playerStrength').value);
+
+            if (name && heart >= 0 && strength >= 0) {
+                try {
+                    if (isUpdating && currentUpdateId !== null) {
+                        // Update existing player
+                        await contract.updatePlayer(currentUpdateId, name, heart, strength);
+                        const players = JSON.parse(localStorage.getItem(currentAddress));
+                        const updatedPlayers = players.map(p => 
+                            p.id === currentUpdateId ? { id: p.id, name, heart, strength } : p
+                        );
+                        localStorage.setItem(currentAddress, JSON.stringify(updatedPlayers));
+                    } else {
+                        // Add new player
+                        const players = JSON.parse(localStorage.getItem(currentAddress)) || [];
+                        const newId = players.length ? Math.max(...players.map(p => p.id)) + 1 : 1;
+                        const newPlayer = { id: newId, name, heart, strength };
+                        players.push(newPlayer);
+                        localStorage.setItem(currentAddress, JSON.stringify(players));
+                        await contract.addPlayer(newId, name, heart, strength);
+                    }
+
+                    // Reload players and clear the form
+                    loadPlayersFromLocalStorage();
+                    clearAddUpdateForm();
+
+                    // Hide the add/update section and show the manager section
+                    document.getElementById('addUpdateSection').style.display = 'none';
+                    document.getElementById('managerSection').style.display = 'block';
+                } catch (error) {
+                    console.error("Error while adding/updating player:", error);
+                    alert("An error occurred while adding/updating the player. Please try again.");
+                }
+            } else {
+                alert("Please fill in all fields correctly!");
+            }
+        });
+
+        // Sự kiện cho nút Cancel
+        document.getElementById('cancelButton').addEventListener('click', () => {
+            clearAddUpdateForm();  // Dọn dẹp form nhập liệu
+            document.getElementById('addUpdateSection').style.display = 'none';  // Ẩn phần nhập liệu
+            document.getElementById('managerSection').style.display = 'block';  // Hiển thị phần quản lý
+        });
+            
+                // Delete player
+                // Delete player
+        async function deletePlayer(id) {
+            try {
+                // Thực hiện xóa người chơi trên blockchain
+                await contract.removePlayer(id);
+                
+                // Sau khi xóa thành công trên blockchain, cập nhật localStorage và giao diện
+                const players = JSON.parse(localStorage.getItem(currentAddress));
+                const updatedPlayers = players.filter(p => p.id !== id);
+                localStorage.setItem(currentAddress, JSON.stringify(updatedPlayers));
+                
+                // Tải lại danh sách người chơi
+                loadPlayersFromLocalStorage();
+            } catch (error) {
+                console.error("Lỗi khi xóa người chơi:", error);
+                alert("Đã xảy ra lỗi khi xóa người chơi. Vui lòng thử lại.");
+            }
+        }
+
+            
+                // Clear the form after add/update
+                function clearAddUpdateForm() {
+            document.getElementById('playerName').value = '';
+            document.getElementById('playerHeart').value = '';
+            document.getElementById('playerStrength').value = '';
+            isUpdating = false;
+            currentUpdateId = null;
+            // Đặt lại button thành "Add Player"
+            document.getElementById('submitPlayerButton').innerText = 'Add Player';
+        }
+    
+        // Connect to MetaMask when clicking connect button
+        document.getElementById('connectButton').addEventListener('click', connectToMetaMask);
+    </script>
+</body>
+</html>
